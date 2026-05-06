@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dart IR — Small Cap Digital Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #0d9488;
+      --accent-2: #2563eb;
+      --hot: #dc2626;
+      --warm: #d97706;
+      --cold: #16a34a;
+      --radius: 14px;
+      --shadow: 0 10px 40px -12px rgba(15, 23, 42, 0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 80px; }
+    header {
+      display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;
+      margin-bottom: 28px;
+    }
+    .brand h1 { margin: 0; font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand p { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #ccfbf1, #dbeafe);
+      border: 1px solid #99f6e4;
+      color: #0f766e;
+      font-size: 0.8rem; font-weight: 600;
+      padding: 8px 14px; border-radius: 999px;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 22px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      padding: 22px 22px 20px;
+    }
+    .card h2 { margin: 0 0 16px; font-size: 1.05rem; font-weight: 600; }
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
+      font: inherit; background: #fafbfc;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #99f6e4; border-color: var(--accent); background: #fff; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 14px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    button {
+      font: inherit; font-weight: 600; cursor: pointer; border: none; border-radius: 10px;
+      padding: 11px 18px; transition: transform 0.08s, box-shadow 0.15s;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, #0d9488, #2563eb);
+      color: #fff; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+    }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+    .btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--line); }
+    .btn-ghost { background: transparent; color: var(--accent-2); border: 1px dashed #93c5fd; }
+    textarea { min-height: 88px; resize: vertical; font-size: 0.85rem; }
+    .status {
+      margin-top: 12px; padding: 12px 14px; border-radius: 10px; font-size: 0.88rem;
+      background: #f8fafc; border: 1px solid var(--line); color: var(--muted);
+    }
+    .status.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .status.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .progress { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+    .progress > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0%; transition: width 0.3s; }
+    /* Report */
+    .report { margin-top: 22px; }
+    .report-head {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px;
+      margin-bottom: 20px;
+    }
+    .report-head h2 { margin: 0; font-size: 1.35rem; }
+    .prio { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 6px 12px; border-radius: 8px; color: #fff; }
+    .prio.hot { background: var(--hot); }
+    .prio.warm { background: var(--warm); }
+    .prio.cold { background: var(--cold); }
+    .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .score-ring {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; text-align: center;
+    }
+    .score-ring b { font-size: 1.6rem; display: block; }
+    .score-ring span { font-size: 0.75rem; color: var(--muted); }
+    .bar-wrap { margin-top: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.82rem; }
+    .bar-row label { flex: 0 0 88px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--text); font-weight: 500; }
+    .bar-track { flex: 1; height: 10px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #14b8a6, #3b82f6); transition: width 0.5s ease; }
+    .bar-fill.peer { background: linear-gradient(90deg, #a855f7, #6366f1); }
+    .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { .cols2 { grid-template-columns: 1fr; } }
+    .block { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #fafcff; }
+    .block h3 { margin: 0 0 10px; font-size: 0.92rem; }
+    .block ul { margin: 0; padding-left: 18px; color: #334155; font-size: 0.9rem; }
+    .block li { margin-bottom: 6px; }
+    .copy-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .mono {
+      font-family: ui-monospace, monospace; font-size: 0.8rem; background: #0f172a; color: #e2e8f0;
+      padding: 12px 14px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow: auto; flex: 1; min-width: 200px;
+    }
+    .hidden { display: none !important; }
+    .raw-fallback { margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
+    #toast {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999;
+      max-width: min(560px, 92vw); padding: 12px 18px; border-radius: 12px; font-size: 0.9rem; font-weight: 600;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.2); border: 1px solid var(--line); display: none;
+    }
+    #toast.show { display: block; }
+    #toast.info { background: #ecfeff; color: #0e7490; }
+    #toast.err { background: #fef2f2; color: #991b1b; }
+    #toast.ok { background: #ecfdf5; color: #065f46; }
+    .chk { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--muted); margin: 8px 0 0; }
+    .chk input { width: auto; }
+    /* Human-readable report */
+    .report-doc {
+      max-width: 720px; margin-top: 8px; padding: 28px 30px 32px; background: var(--surface);
+      border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    }
+    .report-doc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid #e0f2fe; }
+    .report-doc-head h2 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .report-doc-meta { margin: 6px 0 0; font-size: 0.95rem; color: var(--muted); }
+    .report-section { margin-bottom: 22px; }
+    .report-section-title {
+      margin: 0 0 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+    }
+    .report-h3 { margin: 18px 0 8px; font-size: 1.05rem; font-weight: 600; color: #0f172a; }
+    .report-h4 { margin: 14px 0 6px; font-size: 0.95rem; font-weight: 600; color: #334155; }
+    .report-p { margin: 0 0 12px; font-size: 0.95rem; line-height: 1.65; color: #334155; }
+    .report-p strong { color: #0f172a; }
+    .report-hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+    .report-quote {
+      margin: 0 0 12px; padding: 14px 18px; border-left: 4px solid var(--accent); background: linear-gradient(90deg, #f0fdfa, #f8fafc);
+      border-radius: 0 10px 10px 0; font-size: 0.95rem; line-height: 1.6; color: #1e293b;
+    }
+    .report-quote.alt { border-left-color: var(--accent-2); background: linear-gradient(90deg, #eff6ff, #f8fafc); }
+    .report-foot { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); font-size: 0.82rem; line-height: 1.55; color: var(--muted); }
+    .report-scores-inline { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+    .report-score-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+      background: #f1f5f9; font-size: 0.82rem; font-weight: 600; color: #334155;
+    }
+    .report-score-pill b { color: #0f172a; font-size: 0.95rem; }
+    .report-peer-box { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 14px 16px; margin-top: 8px; }
+    .report-peer-box h4 { margin: 0 0 8px; font-size: 0.88rem; color: #6b21a8; }
+    .report-ul { margin: 0; padding-left: 1.15rem; color: #334155; font-size: 0.92rem; line-height: 1.55; }
+    .report-ul li { margin-bottom: 8px; }
+    .report-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+    details.report-raw { margin-top: 14px; font-size: 0.8rem; color: var(--muted); }
+    details.report-raw summary { cursor: pointer; font-weight: 600; }
+    details.report-raw .mono { max-height: 240px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1>Dart IR — Small cap digital audit</h1>
+        <p>Web-grounded scores, gaps, peer comparison — runs through your secure Vercel proxy.</p>
+      </div>
+      <div class="pill">● API: <code style="font-size:0.75rem">/api/audit</code></div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Company</h2>
+        <div class="field">
+          <label for="company">Company name</label>
+          <input id="company" type="text" placeholder="e.g. Ares Strategic Mining Inc." autocomplete="organization" />
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="ticker">Ticker</label>
+            <input id="ticker" type="text" placeholder="ARSMF" />
+          </div>
+          <div class="field">
+            <label for="exchange">Exchange</label>
+            <select id="exchange">
+              <option>NASDAQ</option>
+              <option>NYSE</option>
+              <option>NYSE American</option>
+              <option>OTCQX</option>
+              <option>OTCQB</option>
+              <option>OTC</option>
+              <option>TSX</option>
+              <option>TSX-V</option>
+              <option>CSE</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="model">Claude model</label>
+          <select id="model">
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001 (fast / lower cost)</option>
+            <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022 (balanced)</option>
+            <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6 (recommended)</option>
+            <option value="claude-sonnet-4-20250514">claude-sonnet-4-20250514 (alternate Sonnet 4)</option>
+          </select>
+        </div>
+        <label class="chk"><input type="checkbox" id="useWebSearch" checked /> Use web search (needs Anthropic org setting)</label>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="runBtn">Run audit</button>
+          <button type="button" class="btn-secondary" id="clearBtn">Clear</button>
+        </div>
+        <div class="field" style="margin-top:18px">
+          <label for="batch">Batch (CSV: Company, Ticker, Exchange — one per line)</label>
+          <textarea id="batch" placeholder="Epsilon Energy Ltd., EPSN, NASDAQ"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-ghost" id="batchBtn">Run batch</button>
+          <button type="button" class="btn-secondary" id="exportBtn" disabled>Export CSV</button>
+        </div>
+        <div id="status" class="status hidden"></div>
+        <div class="progress hidden" id="progWrap"><i id="progBar"></i></div>
+      </div>
+
+      <div class="card">
+        <h2>How it works</h2>
+        <ul style="margin:0;padding-left:18px;color:#475569;font-size:0.92rem">
+          <li style="margin-bottom:8px">Frontend calls only <strong>/api/audit</strong> on this domain — your Anthropic key stays on Vercel.</li>
+          <li style="margin-bottom:8px">Enable <strong>web search</strong> on your Anthropic org (Console → settings) or the API will error.</li>
+          <li style="margin-bottom:8px">One peer is auto-picked: same industry, listed on <strong>NASDAQ / NYSE / OTCQX / OTCQB</strong>, best-in-class digital/IR.</li>
+          <li>Batch waits <strong>4s</strong> between companies to reduce rate limits.</li>
+        </ul>
+        <div id="report" class="report hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "/api/audit";
+    const byId = (id) => document.getElementById(id);
+
+    const SYSTEM = `You are a senior B2B strategist for an agency that upgrades investor relations and digital presence for US small-cap and OTC companies.
+
+Use the web_search tool as much as needed to verify: official site, investor relations pages, LinkedIn company page, X (Twitter), Facebook, recent press/SEC/IR news, and follower or posting cadence where visible.
+
+Also find ONE best-in-class peer:
+- Same industry / sub-sector and comparable stage where possible
+- Must be listed on NASDAQ, NYSE, OTCQX, or OTCQB (US)
+- Chosen because their website + social + IR narrative are clearly stronger for retail/institutional investors
+
+After research, reply with a short professional narrative (2–4 paragraphs), THEN output a single JSON object (valid JSON only for that object) with this exact shape — no trailing commentary after the JSON:
+{
+  "company_name": "",
+  "ticker": "",
+  "exchange": "",
+  "priority": "hot|warm|cold",
+  "confidence": "high|medium|low",
+  "scores": {
+    "website": 0,
+    "social": 0,
+    "ir_narrative": 0,
+    "overall": 0
+  },
+  "competitor": {
+    "name": "",
+    "ticker": "",
+    "exchange": "",
+    "scores": { "website": 0, "social": 0, "ir_narrative": 0, "overall": 0 },
+    "why_they_win": ["", "", ""]
+  },
+  "gaps": {
+    "website": ["", ""],
+    "social": ["", ""],
+    "ir": ["", ""]
+  },
+  "pitch_angle": "",
+  "cold_email_line": "",
+  "evidence_notes": ""
+}
+
+Scoring guide (0–10): website = design, data richness, IR clarity, mobile; social = platforms present, format mix (video, charts, PR, educational), posting frequency vs at least 1 post / 3 days ideal; ir_narrative = story, trust, comparables, filings/deck discoverability. overall = weighted judgment. confidence = low if major data blocked (e.g. LinkedIn) or uncertain.
+
+Use integers 0–10 for all scores.`;
+
+    const results = [];
+
+    function showToast(msg, kind) {
+      const t = byId("toast");
+      if (!t) return;
+      if (!msg) {
+        t.classList.remove("show", "info", "err", "ok");
+        return;
+      }
+      t.textContent = msg;
+      t.classList.remove("info", "err", "ok");
+      t.classList.add("show");
+      if (kind === "error") t.classList.add("err");
+      else if (kind === "ok") t.classList.add("ok");
+      else t.classList.add("info");
+    }
+
+    function setStatus(msg, type) {
+      const el = byId("status");
+      if (!el) return;
+      el.classList.remove("hidden", "error", "ok");
+      if (type === "error") el.classList.add("error");
+      else if (type === "ok") el.classList.add("ok");
+      el.textContent = msg;
+      if (msg) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+      if (msg) showToast(msg, type === "error" ? "error" : type === "ok" ? "ok" : "info");
+      else byId("toast")?.classList.remove("show", "info", "err", "ok");
+    }
+
+    function findBalancedJsonSpan(text, start) {
+      if (!text || start < 0 || text[start] !== "{") return null;
+      let depth = 0;
+      let inStr = false;
+      let esc = false;
+      for (let i = start; i < text.length; i++) {
+        const c = text[i];
+        if (inStr) {
+          if (esc) {
+            esc = false;
+            continue;
+          }
+          if (c === "\\") {
+            esc = true;
+            continue;
+          }
+          if (c === '"') inStr = false;
+          continue;
+        }
+        if (c === '"') {
+          inStr = true;
+          continue;
+        }
+        if (c === "{") depth++;
+        else if (c === "}") {
+          depth--;
+          if (depth === 0) return { start, end: i + 1 };
+        }
+      }
+      return null;
+    }
+
+    function tryParseJsonAt(text, start) {
+      const span = findBalancedJsonSpan(text, start);
+      if (!span) return null;
+      try {
+        const data = JSON.parse(text.slice(span.start, span.end));
+        if (data && typeof data === "object") return { data, start: span.start, end: span.end };
+      } catch {
+        /* */
+      }
+      return null;
+    }
+
+    /** Pull JSON from model output (handles ```json { … } ``` or truncated fences). */
+    function extractJsonWithSpan(text) {
+      if (!text) return null;
+      const fenceRe = /```\s*json\s*/gi;
+      let fm;
+      while ((fm = fenceRe.exec(text)) !== null) {
+        let p = text.indexOf("{", fm.index);
+        if (p === -1) p = fm.index + fm[0].length;
+        while (p < text.length && /\s/.test(text[p])) p++;
+        if (text[p] === "{") {
+          const got = tryParseJsonAt(text, p);
+          if (got) return got;
+        }
+      }
+      let p = text.indexOf("{");
+      while (p !== -1) {
+        const got = tryParseJsonAt(text, p);
+        if (got) return got;
+        p = text.indexOf("{", p + 1);
+      }
+      return null;
+    }
+
+    function parseAuditorResponse(rawText) {
+      if (!rawText || !String(rawText).trim()) return { parsed: null, narrative: "" };
+      const got = extractJsonWithSpan(rawText);
+      if (!got) return { parsed: null, narrative: String(rawText).trim() };
+      const narrative = rawText.slice(0, got.start).replace(/\s+$/, "").trim();
+      return { parsed: got.data, narrative };
+    }
+
+    function inlineBoldFromEscaped(safe) {
+      const parts = String(safe).split("**");
+      return parts.map((p, i) => (i % 2 === 1 ? "<strong>" + p + "</strong>" : p)).join("");
+    }
+
+    /** Narrative → readable HTML (## / ### / --- / **bold**). */
+    function formatProse(raw) {
+      if (!raw) return "";
+      const lines = String(raw).split(/\r?\n/);
+      const out = [];
+      let para = [];
+      const flushPara = () => {
+        if (!para.length) return;
+        const joined = para.join("\n").trim();
+        if (joined) {
+          const esc = escapeHtml(joined);
+          out.push('<p class="report-p">' + inlineBoldFromEscaped(esc) + "</p>");
+        }
+        para = [];
+      };
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t) {
+          flushPara();
+          continue;
+        }
+        if (/^---+(\s*)$/.test(t)) {
+          flushPara();
+          out.push('<hr class="report-hr" />');
+          continue;
+        }
+        if (t.startsWith("### ")) {
+          flushPara();
+          out.push('<h4 class="report-h4">' + escapeHtml(t.slice(4).trim()) + "</h4>");
+          continue;
+        }
+        if (t.startsWith("## ")) {
+          flushPara();
+          out.push('<h3 class="report-h3">' + escapeHtml(t.slice(3).trim()) + "</h3>");
+          continue;
+        }
+        para.push(line);
+      }
+      flushPara();
+      return out.join("");
+    }
+
+    function gapItems(g) {
+      if (Array.isArray(g)) return g.map((x) => String(x).trim()).filter(Boolean);
+      if (g == null) return [];
+      if (typeof g === "string") return g.trim() ? [g.trim()] : [];
+      return [];
+    }
+
+    function barRow(label, you, peer) {
+      const y = Math.min(10, Math.max(0, Number(you) || 0));
+      const p = Math.min(10, Math.max(0, Number(peer) || 0));
+      return `
+        <div class="bar-row"><label>${label}</label><div class="bar-track"><div class="bar-fill" style="width:${y * 10}%"></div></div><span style="min-width:28px;text-align:right;font-weight:600">${y}</span></div>
+        <div class="bar-row"><label>${label} (peer)</label><div class="bar-track"><div class="bar-fill peer" style="width:${p * 10}%"></div></div><span style="min-width:28px;text-align:right;font-weight:600">${p}</span></div>`;
+    }
+
+    function renderReport(narrative, data, rawText) {
+      const report = byId("report");
+      report.classList.remove("hidden");
+
+      if (!data) {
+        const prose = formatProse(narrative || rawText || "");
+        report.innerHTML = `
+          <div class="report-doc">
+            <p class="report-section-title">Report</p>
+            <h2 class="report-h3" style="margin-top:0">Narrative (structured JSON not detected)</h2>
+            <div class="report-section">${prose || "<p class=\"report-p\">No content.</p>"}</div>
+            <details class="report-raw"><summary>Technical — raw model output</summary>
+              <div class="mono">${escapeHtml(rawText || "")}</div>
+            </details>
+          </div>`;
+        report.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+      }
+
+      const pr = (data.priority || "warm").toLowerCase();
+      const prioClass = pr === "hot" ? "hot" : pr === "cold" ? "cold" : "warm";
+      const comp = data.competitor || {};
+      const cs = comp.scores || {};
+      const ys = data.scores || {};
+      const gw = gapItems(data.gaps && data.gaps.website);
+      const gs = gapItems(data.gaps && data.gaps.social);
+      const gir = gapItems(data.gaps && data.gaps.ir);
+      const wins = Array.isArray(comp.why_they_win) ? comp.why_they_win.map(String).filter(Boolean) : [];
+
+      report.innerHTML = `
+        <div class="report-doc">
+          <header class="report-doc-head">
+            <div>
+              <h2>${escapeHtml(data.company_name || "Company")}</h2>
+              <p class="report-doc-meta">${escapeHtml(String(data.ticker || ""))} · ${escapeHtml(String(data.exchange || ""))}</p>
+            </div>
+            <span class="prio ${prioClass}">${escapeHtml(String(data.priority || ""))}</span>
+          </header>
+
+          ${narrative ? `<section class="report-section"><p class="report-section-title">Executive summary</p>${formatProse(narrative)}</section>` : ""}
+
+          <section class="report-section">
+            <p class="report-section-title">Scores (you)</p>
+            <div class="report-scores-inline">
+              <span class="report-score-pill">Overall <b>${ys.overall ?? "—"}</b>/10</span>
+              <span class="report-score-pill">Website <b>${ys.website ?? "—"}</b></span>
+              <span class="report-score-pill">Social <b>${ys.social ?? "—"}</b></span>
+              <span class="report-score-pill">IR narrative <b>${ys.ir_narrative ?? "—"}</b></span>
+            </div>
+            <p class="report-foot" style="margin:0;border:0;padding:0;font-size:0.85rem">Confidence: <strong>${escapeHtml(String(data.confidence || ""))}</strong></p>
+          </section>
+
+          <section class="report-section">
+            <p class="report-section-title">Vs best-in-class peer</p>
+            <p class="report-p" style="margin-top:0"><strong>${escapeHtml(comp.name || "Peer")}</strong> (${escapeHtml(String(comp.ticker || ""))}, ${escapeHtml(String(comp.exchange || ""))})</p>
+            <div class="bar-wrap" style="margin-top:10px">
+              ${barRow("Website", ys.website, cs.website)}
+              ${barRow("Social", ys.social, cs.social)}
+              ${barRow("IR story", ys.ir_narrative, cs.ir_narrative)}
+              ${barRow("Overall", ys.overall, cs.overall)}
+            </div>
+            ${wins.length ? `<div class="report-peer-box"><h4>What they do better</h4><ul class="report-ul">${wins.map((w) => "<li>" + escapeHtml(w) + "</li>").join("")}</ul></div>` : ""}
+          </section>
+
+          <section class="report-section">
+            <p class="report-section-title">Gaps & opportunities</p>
+            <h4 class="report-h4">Website</h4>
+            <ul class="report-ul">${gw.length ? gw.map((g) => "<li>" + escapeHtml(g) + "</li>").join("") : "<li>—</li>"}</ul>
+            <h4 class="report-h4">Social</h4>
+            <ul class="report-ul">${gs.length ? gs.map((g) => "<li>" + escapeHtml(g) + "</li>").join("") : "<li>—</li>"}</ul>
+            <h4 class="report-h4">IR & trust</h4>
+            <ul class="report-ul">${gir.length ? gir.map((g) => "<li>" + escapeHtml(g) + "</li>").join("") : "<li>—</li>"}</ul>
+          </section>
+
+          <section class="report-section">
+            <p class="report-section-title">Outreach</p>
+            <p class="report-section-title" style="margin-top:4px;color:#64748b;font-size:0.68rem">Pitch</p>
+            <blockquote class="report-quote">${inlineBoldFromEscaped(escapeHtml(data.pitch_angle || "—"))}</blockquote>
+            <p class="report-section-title" style="margin-top:4px;color:#64748b;font-size:0.68rem">Suggested email line</p>
+            <blockquote class="report-quote alt">${inlineBoldFromEscaped(escapeHtml(data.cold_email_line || "—"))}</blockquote>
+          </section>
+
+          ${data.evidence_notes ? `<footer class="report-foot"><strong>Evidence & caveats</strong><br/>${inlineBoldFromEscaped(escapeHtml(String(data.evidence_notes)))}</footer>` : ""}
+
+          <div class="report-actions">
+            <button type="button" class="btn-secondary" id="copyPitch">Copy pitch</button>
+            <button type="button" class="btn-secondary" id="copyEmail">Copy email line</button>
+            <button type="button" class="btn-secondary" id="copyJson">Copy structured data (JSON)</button>
+          </div>
+          <details class="report-raw"><summary>Technical — structured JSON only</summary>
+            <div class="mono">${escapeHtml(JSON.stringify(data, null, 2))}</div>
+          </details>
+        </div>`;
+
+      byId("copyPitch")?.addEventListener("click", () => copyText(data.pitch_angle));
+      byId("copyEmail")?.addEventListener("click", () => copyText(data.cold_email_line));
+      byId("copyJson")?.addEventListener("click", () => copyText(JSON.stringify(data, null, 2)));
+      report.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function copyText(t) {
+      navigator.clipboard.writeText(t || "").then(() => setStatus("Copied.", "ok")).catch(() => setStatus("Copy failed.", "error"));
+      setTimeout(() => setStatus("", ""), 2000);
+    }
+
+    function anthropicErrorMessage(data) {
+      const e = data && data.error;
+      if (e == null) return null;
+      if (typeof e === "string") return e;
+      if (typeof e.message === "string") return e.message;
+      try {
+        return JSON.stringify(e);
+      } catch {
+        return String(e);
+      }
+    }
+
+    async function runAudit(company, ticker, exchange) {
+      const model = byId("model").value;
+      const useSearch = byId("useWebSearch")?.checked !== false;
+      const userMsg = `Audit this company for digital + IR + social vs peers.\n\nCompany: ${company}\nTicker: ${ticker}\nExchange: ${exchange}\n\nFollow the JSON schema in your instructions.${useSearch ? " Use web search for current facts." : " Use your best knowledge (web search disabled in this request)."}`;
+
+      const body = {
+        model,
+        max_tokens: 8192,
+        system: SYSTEM,
+        messages: [{ role: "user", content: userMsg }],
+      };
+      if (useSearch) {
+        body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }];
+      }
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 180000);
+
+      let res;
+      try {
+        res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: ctrl.signal,
+        });
+      } catch (err) {
+        if (err.name === "AbortError") throw new Error("Request timed out (3 min). Try again or turn off web search.");
+        throw new Error(err.message || "Network error — is `vercel dev` running and is this the app URL?");
+      } finally {
+        clearTimeout(t);
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = anthropicErrorMessage(data) || data.detail || `HTTP ${res.status}`;
+        throw new Error(String(msg));
+      }
+
+      let textBlocks = (data.content || [])
+        .filter((b) => b.type === "text")
+        .map((b) => b.text);
+      let rawText = textBlocks.join("\n\n");
+      if (!rawText.trim()) {
+        rawText =
+          "[No text blocks in API response]\nstop_reason: " +
+          (data.stop_reason || "unknown") +
+          "\n\ncontent JSON:\n" +
+          JSON.stringify(data.content || [], null, 2);
+      }
+      const { parsed, narrative } = parseAuditorResponse(rawText);
+      return { rawText, parsed, narrative, company, ticker, exchange };
+    }
+
+    function wireUi() {
+      const runBtn = byId("runBtn");
+      if (!runBtn) {
+        console.error("[Dart IR] Missing #runBtn — wrong page?");
+        showToast("Page did not load correctly (missing Run audit button). Hard-refresh (Ctrl+Shift+R).", "error");
+        return;
+      }
+      const runLabel = runBtn.textContent;
+
+      runBtn.addEventListener("click", async () => {
+        const company = byId("company").value.trim();
+        const ticker = byId("ticker").value.trim();
+        const exchange = byId("exchange").value;
+        if (!company || !ticker) {
+          setStatus("Company name and ticker are required.", "error");
+          return;
+        }
+        runBtn.disabled = true;
+        runBtn.textContent = "Running…";
+        setStatus("Running audit (can take 30–120s with web search)…");
+        try {
+          const out = await runAudit(company, ticker, exchange);
+          results.length = 0;
+          results.push(out);
+          renderReport(out.narrative, out.parsed, out.rawText);
+          byId("exportBtn").disabled = false;
+          setStatus("Done.", "ok");
+        } catch (e) {
+          console.error("[Dart IR] audit failed", e);
+          setStatus(e.message || String(e), "error");
+        } finally {
+          runBtn.disabled = false;
+          runBtn.textContent = runLabel;
+        }
+      });
+
+      byId("clearBtn").addEventListener("click", () => {
+        byId("company").value = "";
+        byId("ticker").value = "";
+        byId("batch").value = "";
+        byId("report").classList.add("hidden");
+        byId("report").innerHTML = "";
+        byId("status").classList.add("hidden");
+        results.length = 0;
+        byId("exportBtn").disabled = true;
+        byId("toast")?.classList.remove("show", "info", "err", "ok");
+      });
+
+      byId("batchBtn").addEventListener("click", async () => {
+        const lines = byId("batch").value.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (!lines.length) {
+          setStatus("Paste at least one CSV line.", "error");
+          return;
+        }
+        const parsedLines = [];
+        for (const line of lines) {
+          const parts = line.split(",").map((p) => p.trim());
+          if (parts.length < 2) continue;
+          parsedLines.push({ company: parts[0], ticker: parts[1], exchange: parts[2] || "NASDAQ" });
+        }
+        if (!parsedLines.length) {
+          setStatus("Could not parse CSV lines. Format: Company, Ticker, Exchange", "error");
+          return;
+        }
+        byId("batchBtn").disabled = true;
+        runBtn.disabled = true;
+        byId("progWrap").classList.remove("hidden");
+        results.length = 0;
+        let i = 0;
+        for (const row of parsedLines) {
+          i++;
+          byId("progBar").style.width = `${(100 * (i - 1)) / parsedLines.length}%`;
+          setStatus(`Batch ${i}/${parsedLines.length}: ${row.company}…`);
+          byId("company").value = row.company;
+          byId("ticker").value = row.ticker;
+          byId("exchange").value = row.exchange;
+          try {
+            const out = await runAudit(row.company, row.ticker, row.exchange);
+            results.push(out);
+            renderReport(out.narrative, out.parsed, out.rawText);
+          } catch (e) {
+            results.push({ error: e.message, company: row.company, ticker: row.ticker, exchange: row.exchange });
+          }
+          if (i < parsedLines.length) await new Promise((r) => setTimeout(r, 4000));
+        }
+        byId("progBar").style.width = "100%";
+        byId("exportBtn").disabled = results.every((r) => r.error);
+        setStatus(`Batch finished: ${results.filter((r) => !r.error).length} ok, ${results.filter((r) => r.error).length} failed.`, "ok");
+        byId("batchBtn").disabled = false;
+        runBtn.disabled = false;
+      });
+
+      byId("exportBtn").addEventListener("click", () => {
+      const headers = [
+        "company", "ticker", "exchange", "priority", "confidence", "overall", "website", "social", "ir_narrative",
+        "competitor_name", "competitor_ticker", "competitor_exchange", "competitor_overall",
+        "pitch_angle", "cold_email_line", "json"
+      ];
+      const rows = [headers.join(",")];
+      for (const r of results) {
+        if (r.error) {
+          rows.push(csvEscape(r.company) + "," + csvEscape(r.ticker) + "," + csvEscape(r.exchange) + ",,,,,,,,,,,," + csvEscape(r.error));
+          continue;
+        }
+        const d = r.parsed || {};
+        const s = d.scores || {};
+        const c = d.competitor || {};
+        const cs = c.scores || {};
+        rows.push([
+          csvEscape(d.company_name || r.company),
+          csvEscape(d.ticker || r.ticker),
+          csvEscape(d.exchange || r.exchange),
+          csvEscape(d.priority),
+          csvEscape(d.confidence),
+          s.overall ?? "",
+          s.website ?? "",
+          s.social ?? "",
+          s.ir_narrative ?? "",
+          csvEscape(c.name),
+          csvEscape(c.ticker),
+          csvEscape(c.exchange),
+          cs.overall ?? "",
+          csvEscape(d.pitch_angle),
+          csvEscape(d.cold_email_line),
+          csvEscape(JSON.stringify(d)),
+        ].join(","));
+      }
+      const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "dart-ir-audits.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    }
+
+    function csvEscape(s) {
+      const t = String(s ?? "");
+      if (/[",\n]/.test(t)) return `"${t.replace(/"/g, '""')}"`;
+      return t;
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireUi);
+    else wireUi();
+  </script>
+</body>
+</html>
